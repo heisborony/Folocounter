@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WordCount</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0e0f;
+      --surface: #161618;
+      --surface2: #1e1e21;
+      --border: #2a2a2e;
+      --accent: #f5a623;
+      --accent-dim: rgba(245,166,35,0.12);
+      --accent-glow: rgba(245,166,35,0.25);
+      --text: #e8e6e0;
+      --muted: #6b6b72;
+      --sel-color: #3dffc3;
+      --sel-dim: rgba(61,255,195,0.1);
+      --sel-glow: rgba(61,255,195,0.2);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    /* === HEADER === */
+    header {
+      padding: 28px 40px 0;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .logo span {
+      color: var(--accent);
+    }
+
+    .tagline {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.05em;
+    }
+
+    /* === MAIN LAYOUT === */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 0;
+      padding: 28px 40px 40px;
+      min-height: 0;
+    }
+
+    /* === EDITOR === */
+    .editor-wrap {
+      display: flex;
+      flex-direction: column;
+      padding-right: 32px;
+      border-right: 1px solid var(--border);
+    }
+
+    .editor-label {
+      font-size: 10px;
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    #editor {
+      flex: 1;
+      width: 100%;
+      min-height: 480px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14.5px;
+      line-height: 1.8;
+      padding: 24px;
+      resize: none;
+      outline: none;
+      transition: border-color 0.2s;
+      caret-color: var(--accent);
+    }
+
+    #editor:focus {
+      border-color: #3a3a40;
+    }
+
+    #editor::selection {
+      background: rgba(245, 166, 35, 0.22);
+    }
+
+    #editor::placeholder {
+      color: #3a3a3e;
+    }
+
+    .editor-footer {
+      margin-top: 10px;
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--muted);
+      display: flex;
+      gap: 20px;
+    }
+
+    .editor-footer span b {
+      color: #5a5a62;
+      font-weight: 400;
+    }
+
+    /* === SIDEBAR === */
+    .sidebar {
+      padding-left: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* === STAT CARD === */
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 22px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .stat-card.primary::before { opacity: 1; }
+
+    .stat-card.sel-card::before {
+      background: var(--sel-color);
+    }
+
+    .stat-card .card-label {
+      font-size: 10px;
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .stat-card .card-number {
+      font-size: 52px;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--text);
+      letter-spacing: -2px;
+      transition: color 0.2s, transform 0.15s;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-card.primary .card-number { color: var(--accent); }
+
+    .stat-card.sel-card .card-number {
+      font-size: 52px;
+      color: var(--sel-color);
+    }
+
+    .stat-card .card-sub {
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* Selection card pulse animation */
+    @keyframes selPulse {
+      0%   { box-shadow: 0 0 0 0 var(--sel-glow); }
+      70%  { box-shadow: 0 0 0 8px transparent; }
+      100% { box-shadow: 0 0 0 0 transparent; }
+    }
+
+    .sel-card.active {
+      border-color: rgba(61,255,195,0.3);
+      background: var(--sel-dim);
+      animation: selPulse 0.5s ease-out;
+    }
+
+    .sel-card.active .card-number { color: var(--sel-color); }
+
+    /* Number bump animation */
+    @keyframes bump {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.06); }
+      100% { transform: scale(1); }
+    }
+
+    .bump { animation: bump 0.18s ease-out; }
+
+    /* === MINI STATS ROW === */
+    .mini-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .mini-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+
+    .mini-card .mini-label {
+      font-size: 9px;
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .mini-card .mini-num {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -1px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* === DIVIDER === */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    /* === CLEAR BUTTON === */
+    .btn-clear {
+      margin-top: 4px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      padding: 9px 14px;
+      cursor: pointer;
+      transition: all 0.18s;
+      text-align: left;
+      width: 100%;
+    }
+
+    .btn-clear:hover {
+      border-color: #ff5c5c;
+      color: #ff5c5c;
+      background: rgba(255,92,92,0.06);
+    }
+
+    /* === HIGHLIGHT TOOLTIP === */
+    #sel-tooltip {
+      position: fixed;
+      background: var(--sel-color);
+      color: #0a1a15;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 5px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.15s, transform 0.15s;
+      white-space: nowrap;
+      z-index: 1000;
+    }
+
+    #sel-tooltip.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #sel-tooltip::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 4px solid var(--sel-color);
+    }
+
+    /* === RESPONSIVE === */
+
+    /* Tablet */
+    @media (max-width: 860px) {
+      main { grid-template-columns: 1fr 220px; padding: 20px 24px 32px; }
+      .sidebar { padding-left: 20px; gap: 12px; }
+      .stat-card .card-number { font-size: 40px; }
+      .stat-card.sel-card .card-number { font-size: 40px; }
+    }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      header {
+        padding: 18px 16px 0;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .logo { font-size: 19px; }
+      .tagline { font-size: 10px; width: 100%; }
+
+      main {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        padding: 14px 16px 100px; /* bottom pad for sticky bar */
+        gap: 16px;
+      }
+
+      /* On mobile: sidebar moves to TOP as a horizontal scroll strip */
+      .sidebar {
+        order: -1;
+        padding-left: 0;
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: visible;
+        gap: 10px;
+        padding-bottom: 6px;
+        /* hide scrollbar visually */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .sidebar::-webkit-scrollbar { display: none; }
+
+      /* Big stat cards side by side, fixed width so they scroll */
+      .stat-card {
+        flex: 0 0 148px;
+        min-width: 148px;
+        padding: 16px;
+      }
+
+      .stat-card .card-number { font-size: 36px; letter-spacing: -1px; }
+      .stat-card.sel-card .card-number { font-size: 36px; }
+      .stat-card .card-sub { font-size: 10px; }
+
+      /* Mini stats as a 4-across inline row */
+      .mini-stats {
+        grid-template-columns: repeat(4, 1fr);
+        flex: 0 0 auto;
+        min-width: 280px;
+        gap: 8px;
+        align-self: stretch;
+      }
+
+      .mini-card {
+        padding: 10px 10px;
+        border-radius: 8px;
+      }
+
+      .mini-card .mini-num { font-size: 18px; }
+      .mini-card .mini-label { font-size: 8px; }
+
+      /* Divider & clear button hidden from sidebar on mobile — clear moved to editor footer */
+      .divider { display: none; }
+      .btn-clear { display: none; }
+
+      /* Editor */
+      .editor-wrap {
+        padding-right: 0;
+        border-right: none;
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      #editor {
+        min-height: 300px;
+        font-size: 15px;
+        padding: 16px;
+        line-height: 1.75;
+        /* fill remaining viewport height */
+        height: calc(100svh - 320px);
+      }
+
+      .editor-footer {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 8px;
+      }
+
+      /* Mobile clear button injected into footer */
+      .btn-clear-mobile {
+        display: inline-flex !important;
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        color: var(--muted);
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 10px;
+        padding: 6px 10px;
+        cursor: pointer;
+        transition: all 0.18s;
+        white-space: nowrap;
+      }
+
+      .btn-clear-mobile:hover,
+      .btn-clear-mobile:active {
+        border-color: #ff5c5c;
+        color: #ff5c5c;
+      }
+    }
+
+    /* Hide mobile clear on desktop */
+    .btn-clear-mobile { display: none; }
+
+    /* === MOBILE STICKY SELECTION BAR === */
+    #mobile-sel-bar {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--sel-color);
+      color: #0a1a15;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 14px 20px;
+      z-index: 200;
+      transform: translateY(100%);
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+
+    #mobile-sel-bar.show {
+      transform: translateY(0);
+    }
+
+    @media (max-width: 600px) {
+      #mobile-sel-bar { display: block; }
+      /* hide desktop tooltip on mobile */
+      #sel-tooltip { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">word<span>.</span>count</div>
+  <div class="tagline">// highlight to measure</div>
+</header>
+
+<main>
+  <div class="editor-wrap">
+    <div class="editor-label">// your text</div>
+    <textarea id="editor" placeholder="Start typing or paste your text here...&#10;&#10;Highlight any portion to see its word count instantly."></textarea>
+    <div class="editor-footer">
+      <span><b>tip:</b> select any text to count highlighted words</span>
+      <button class="btn-clear-mobile" id="btn-clear-mobile">⌫ clear</button>
+    </div>
+  </div>
+
+  <div class="sidebar">
+
+    <div class="stat-card primary" id="total-card">
+      <div class="card-label">Total Words</div>
+      <div class="card-number" id="total-words">0</div>
+      <div class="card-sub">in document</div>
+    </div>
+
+    <div class="stat-card sel-card" id="sel-card">
+      <div class="card-label">Selected Words</div>
+      <div class="card-number" id="sel-words">—</div>
+      <div class="card-sub" id="sel-sub">highlight text to count</div>
+    </div>
+
+    <div class="mini-stats">
+      <div class="mini-card">
+        <div class="mini-label">Characters</div>
+        <div class="mini-num" id="char-count">0</div>
+      </div>
+      <div class="mini-card">
+        <div class="mini-label">No Spaces</div>
+        <div class="mini-num" id="char-ns-count">0</div>
+      </div>
+      <div class="mini-card">
+        <div class="mini-label">Sentences</div>
+        <div class="mini-num" id="sentence-count">0</div>
+      </div>
+      <div class="mini-card">
+        <div class="mini-label">Paragraphs</div>
+        <div class="mini-num" id="para-count">0</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <button class="btn-clear" id="btn-clear">⌫ &nbsp;clear document</button>
+
+  </div>
+</main>
+
+<div id="sel-tooltip"></div>
+<div id="mobile-sel-bar"></div>
+
+<script>
+  const editor        = document.getElementById('editor');
+  const totalEl       = document.getElementById('total-words');
+  const selEl         = document.getElementById('sel-words');
+  const selSub        = document.getElementById('sel-sub');
+  const selCard       = document.getElementById('sel-card');
+  const charEl        = document.getElementById('char-count');
+  const charNsEl      = document.getElementById('char-ns-count');
+  const sentenceEl    = document.getElementById('sentence-count');
+  const paraEl        = document.getElementById('para-count');
+  const tooltip       = document.getElementById('sel-tooltip');
+  const mobileBar     = document.getElementById('mobile-sel-bar');
+  const btnClear      = document.getElementById('btn-clear');
+  const btnClearMob   = document.getElementById('btn-clear-mobile');
+
+  function countWords(str) {
+    const trimmed = str.trim();
+    if (!trimmed) return 0;
+    return trimmed.split(/\s+/).length;
+  }
+
+  function countSentences(str) {
+    const trimmed = str.trim();
+    if (!trimmed) return 0;
+    const matches = trimmed.match(/[^.!?]*[.!?]+/g);
+    return matches ? matches.length : (trimmed.length > 0 ? 1 : 0);
+  }
+
+  function countParagraphs(str) {
+    const trimmed = str.trim();
+    if (!trimmed) return 0;
+    return trimmed.split(/\n\s*\n+/).filter(p => p.trim()).length || (trimmed ? 1 : 0);
+  }
+
+  function animateBump(el) {
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+  }
+
+  let lastTotal = 0;
+  function updateTotal() {
+    const text = editor.value;
+    const wc = countWords(text);
+    if (wc !== lastTotal) {
+      totalEl.textContent = wc;
+      animateBump(totalEl);
+      lastTotal = wc;
+    }
+    charEl.textContent     = text.length;
+    charNsEl.textContent   = text.replace(/\s/g, '').length;
+    sentenceEl.textContent = countSentences(text);
+    paraEl.textContent     = countParagraphs(text);
+  }
+
+  let lastSel = -1;
+  let tooltipX = 0, tooltipY = 0;
+
+  function updateSelection() {
+    const start = editor.selectionStart;
+    const end   = editor.selectionEnd;
+
+    if (start === end) {
+      if (lastSel !== 0) {
+        selEl.textContent = '—';
+        selSub.textContent = 'highlight text to count';
+        selCard.classList.remove('active');
+        tooltip.classList.remove('show');
+        mobileBar.classList.remove('show');
+        lastSel = 0;
+      }
+      return;
+    }
+
+    const selected = editor.value.substring(start, end);
+    const wc = countWords(selected);
+
+    if (wc !== lastSel) {
+      selEl.textContent = wc;
+      selSub.textContent = `word${wc !== 1 ? 's' : ''} selected`;
+      selCard.classList.add('active');
+      animateBump(selEl);
+      lastSel = wc;
+    }
+
+    const label = wc === 1 ? '1 word selected' : `${wc} words selected`;
+
+    // Desktop tooltip
+    tooltip.textContent = wc === 1 ? '1 word' : `${wc} words`;
+    tooltip.style.left = (tooltipX - tooltip.offsetWidth / 2) + 'px';
+    tooltip.style.top  = (tooltipY - 38) + 'px';
+    tooltip.classList.add('show');
+
+    // Mobile sticky bar
+    mobileBar.textContent = label;
+    mobileBar.classList.add('show');
+  }
+
+  editor.addEventListener('mousemove', e => {
+    tooltipX = e.clientX;
+    tooltipY = e.clientY;
+  });
+
+  document.addEventListener('selectionchange', () => {
+    if (document.activeElement === editor) updateSelection();
+  });
+
+  editor.addEventListener('keyup', updateSelection);
+  editor.addEventListener('mouseup', updateSelection);
+
+  // Touch support for mobile selection
+  editor.addEventListener('touchend', () => {
+    // Small delay to let the browser finalize the selection
+    setTimeout(updateSelection, 60);
+  });
+
+  editor.addEventListener('mouseleave', () => {
+    tooltip.classList.remove('show');
+  });
+
+  editor.addEventListener('mouseenter', () => {
+    const start = editor.selectionStart;
+    const end   = editor.selectionEnd;
+    if (start !== end) tooltip.classList.add('show');
+  });
+
+  editor.addEventListener('input', updateTotal);
+
+  function doClear() {
+    editor.value = '';
+    updateTotal();
+    selEl.textContent = '—';
+    selSub.textContent = 'highlight text to count';
+    selCard.classList.remove('active');
+    tooltip.classList.remove('show');
+    mobileBar.classList.remove('show');
+    lastSel = -1;
+    editor.focus();
+  }
+
+  btnClear.addEventListener('click', doClear);
+  btnClearMob.addEventListener('click', doClear);
+
+  updateTotal();
+</script>
+</body>
+</html>
