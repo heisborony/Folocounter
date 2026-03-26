@@ -217,6 +217,30 @@
 
     .sel-card.active .card-number { color: var(--sel-color); }
 
+    /* === SELECTED CHARS CARD === */
+    :root {
+      --chr-color: #b57bff;
+      --chr-dim: rgba(181,123,255,0.1);
+      --chr-glow: rgba(181,123,255,0.2);
+    }
+
+    .chr-card::before { background: var(--chr-color) !important; }
+
+    @keyframes chrPulse {
+      0%   { box-shadow: 0 0 0 0 var(--chr-glow); }
+      70%  { box-shadow: 0 0 0 8px transparent; }
+      100% { box-shadow: 0 0 0 0 transparent; }
+    }
+
+    .chr-card.active {
+      border-color: rgba(181,123,255,0.3);
+      background: var(--chr-dim);
+      animation: chrPulse 0.5s ease-out;
+    }
+
+    .chr-card .card-number { color: var(--muted); }
+    .chr-card.active .card-number { color: var(--chr-color) !important; }
+
     /* Number bump animation */
     @keyframes bump {
       0%   { transform: scale(1); }
@@ -373,6 +397,7 @@
 
       .stat-card .card-number { font-size: 36px; letter-spacing: -1px; }
       .stat-card.sel-card .card-number { font-size: 36px; }
+      .stat-card.chr-card .card-number { font-size: 36px; }
       .stat-card .card-sub { font-size: 10px; }
 
       /* Mini stats as a 4-across inline row */
@@ -505,6 +530,12 @@
       <div class="card-sub" id="sel-sub">highlight text to count</div>
     </div>
 
+    <div class="stat-card chr-card" id="chr-card">
+      <div class="card-label">Selected Chars</div>
+      <div class="card-number" id="sel-chars">—</div>
+      <div class="card-sub" id="chr-sub">highlight text to count</div>
+    </div>
+
     <div class="mini-stats">
       <div class="mini-card">
         <div class="mini-label">Characters</div>
@@ -539,6 +570,9 @@
   const selEl         = document.getElementById('sel-words');
   const selSub        = document.getElementById('sel-sub');
   const selCard       = document.getElementById('sel-card');
+  const selCharsEl    = document.getElementById('sel-chars');
+  const chrSub        = document.getElementById('chr-sub');
+  const chrCard       = document.getElementById('chr-card');
   const charEl        = document.getElementById('char-count');
   const charNsEl      = document.getElementById('char-ns-count');
   const sentenceEl    = document.getElementById('sentence-count');
@@ -589,6 +623,7 @@
   }
 
   let lastSel = -1;
+  let lastSelChars = -1;
   let tooltipX = 0, tooltipY = 0;
 
   function updateSelection() {
@@ -600,15 +635,20 @@
         selEl.textContent = '—';
         selSub.textContent = 'highlight text to count';
         selCard.classList.remove('active');
+        selCharsEl.textContent = '—';
+        chrSub.textContent = 'highlight text to count';
+        chrCard.classList.remove('active');
         tooltip.classList.remove('show');
         mobileBar.classList.remove('show');
         lastSel = 0;
+        lastSelChars = 0;
       }
       return;
     }
 
     const selected = editor.value.substring(start, end);
     const wc = countWords(selected);
+    const cc = selected.length;
 
     if (wc !== lastSel) {
       selEl.textContent = wc;
@@ -618,16 +658,22 @@
       lastSel = wc;
     }
 
-    const label = wc === 1 ? '1 word selected' : `${wc} words selected`;
+    if (cc !== lastSelChars) {
+      selCharsEl.textContent = cc;
+      chrSub.textContent = `char${cc !== 1 ? 's' : ''} selected`;
+      chrCard.classList.add('active');
+      animateBump(selCharsEl);
+      lastSelChars = cc;
+    }
 
-    // Desktop tooltip
-    tooltip.textContent = wc === 1 ? '1 word' : `${wc} words`;
+    // Desktop tooltip — show both
+    tooltip.innerHTML = `<span style="color:#3dffc3">${wc}w</span> &nbsp;<span style="color:#b57bff">${cc}c</span>`;
     tooltip.style.left = (tooltipX - tooltip.offsetWidth / 2) + 'px';
     tooltip.style.top  = (tooltipY - 38) + 'px';
     tooltip.classList.add('show');
 
-    // Mobile sticky bar
-    mobileBar.textContent = label;
+    // Mobile sticky bar — both counts
+    mobileBar.innerHTML = `<span style="margin-right:18px">&#9632; ${wc} word${wc !== 1 ? 's' : ''}</span><span style="opacity:0.5">|</span><span style="margin-left:18px;color:#b57bff">${cc} char${cc !== 1 ? 's' : ''}</span>`;
     mobileBar.classList.add('show');
   }
 
@@ -643,9 +689,7 @@
   editor.addEventListener('keyup', updateSelection);
   editor.addEventListener('mouseup', updateSelection);
 
-  // Touch support for mobile selection
   editor.addEventListener('touchend', () => {
-    // Small delay to let the browser finalize the selection
     setTimeout(updateSelection, 60);
   });
 
@@ -667,9 +711,13 @@
     selEl.textContent = '—';
     selSub.textContent = 'highlight text to count';
     selCard.classList.remove('active');
+    selCharsEl.textContent = '—';
+    chrSub.textContent = 'highlight text to count';
+    chrCard.classList.remove('active');
     tooltip.classList.remove('show');
     mobileBar.classList.remove('show');
     lastSel = -1;
+    lastSelChars = -1;
     editor.focus();
   }
 
@@ -677,6 +725,7 @@
   btnClearMob.addEventListener('click', doClear);
 
   updateTotal();
+
 </script>
 </body>
 </html>
